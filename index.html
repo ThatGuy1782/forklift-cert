@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SDS File Library</title>
+  <title>SDS Library</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,7 +13,6 @@
     h1 {
       font-size: 40px;
       text-align: center;
-      margin-bottom: 30px;
     }
 
     #drop-area {
@@ -29,17 +28,6 @@
       background: #e0f5f0;
     }
 
-    #file-list {
-      margin-top: 20px;
-    }
-
-    .file-item {
-      background: white;
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      margin: 5px 0;
-    }
-
     input[type="text"] {
       width: 100%;
       padding: 12px;
@@ -48,9 +36,16 @@
       border: 1px solid #aaa;
     }
 
+    .file-item {
+      background: white;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+    }
+
     a {
-      text-decoration: none;
       color: #007a66;
+      text-decoration: none;
     }
 
     a:hover {
@@ -63,11 +58,11 @@
   <h1>Safety Data Sheet Library</h1>
 
   <div id="drop-area">
-    <p><strong>Drag and drop SDS files here</strong> or click to select</p>
+    <p><strong>Drag and drop SDS files here</strong> or click to upload</p>
     <input type="file" id="fileElem" multiple style="display:none">
   </div>
 
-  <input type="text" id="searchInput" placeholder="Search for a file...">
+  <input type="text" id="searchInput" placeholder="Search SDS by name...">
 
   <div id="file-list"></div>
 
@@ -77,53 +72,65 @@
     const fileList = document.getElementById("file-list");
     const searchInput = document.getElementById("searchInput");
 
-    let filesData = [];
+    let sdsLibrary = JSON.parse(localStorage.getItem("sdsLibrary") || "[]");
 
-    dropArea.addEventListener("click", () => fileElem.click());
+    function saveLibrary() {
+      localStorage.setItem("sdsLibrary", JSON.stringify(sdsLibrary));
+    }
 
-    fileElem.addEventListener("change", handleFiles);
-    dropArea.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropArea.classList.add("hover");
-    });
+    function updateFileList() {
+      const search = searchInput.value.toLowerCase();
+      fileList.innerHTML = "";
 
-    dropArea.addEventListener("dragleave", () => {
-      dropArea.classList.remove("hover");
-    });
+      sdsLibrary
+        .filter(file => file.name.toLowerCase().includes(search))
+        .forEach(file => {
+          const div = document.createElement("div");
+          div.className = "file-item";
+          div.innerHTML = `
+            <strong>${file.name}</strong><br>
+            <a href="${file.dataUrl}" target="_blank">Open SDS</a>
+          `;
+          fileList.appendChild(div);
+        });
+    }
 
-    dropArea.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropArea.classList.remove("hover");
-      handleFiles({ target: { files: e.dataTransfer.files } });
-    });
-
-    function handleFiles(event) {
-      const files = event.target.files;
+    function handleFiles(files) {
       for (let file of files) {
         const reader = new FileReader();
-        reader.onload = (e) => {
-          filesData.push({ name: file.name, content: e.target.result });
+        reader.onload = function(e) {
+          const newFile = {
+            name: file.name,
+            dataUrl: e.target.result
+          };
+          sdsLibrary.push(newFile);
+          saveLibrary();
           updateFileList();
         };
         reader.readAsDataURL(file);
       }
     }
 
-    function updateFileList() {
-      const search = searchInput.value.toLowerCase();
-      fileList.innerHTML = "";
-      filesData
-        .filter(file => file.name.toLowerCase().includes(search))
-        .forEach(file => {
-          const div = document.createElement("div");
-          div.className = "file-item";
-          div.innerHTML = `<a href="${file.content}" target="_blank">${file.name}</a>`;
-          fileList.appendChild(div);
-        });
-    }
+    dropArea.addEventListener("click", () => fileElem.click());
+    fileElem.addEventListener("change", () => handleFiles(fileElem.files));
+
+    dropArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropArea.classList.add("hover");
+    });
+
+    dropArea.addEventListener("dragleave", () => dropArea.classList.remove("hover"));
+
+    dropArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropArea.classList.remove("hover");
+      handleFiles(e.dataTransfer.files);
+    });
 
     searchInput.addEventListener("input", updateFileList);
-  </script>
 
+    // Load SDS files on page open
+    updateFileList();
+  </script>
 </body>
 </html>
